@@ -28,7 +28,7 @@ HEADERS = {
 }
 
 REGISTRY_FILE = Path(".github/registry/repos.yml")
-WORKDIR_BASE = Path("_work")
+WORKDIR_BASE = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "repo_init_work"
 TEMPLATE_REPO_PATH = Path(".github/templates/repo")
 
 DISPATCH_SITE = os.environ.get("DISPATCH_SITE", "site-template-updated")
@@ -188,7 +188,14 @@ def sync_template_into_main(repo_dir: Path) -> bool:
     ensure_main_checkout(repo_dir)
 
     # copia template
-    run(["rsync", "-a", "--delete", f"{TEMPLATE_REPO_PATH}/", f"{repo_dir}/"])
+    run([
+    "rsync", "-a", "--delete",
+    "--exclude", ".git",
+    "--exclude", ".DS_Store",
+    "--exclude", "_work",
+    f"{TEMPLATE_REPO_PATH}/",
+    f"{repo_dir}/"
+    ])
 
     if not out(["git", "status", "--porcelain"], cwd=repo_dir):
         return False
@@ -244,9 +251,13 @@ def process_repo(entry: Dict) -> None:
 
     log(full, "start")
 
-    if not repo_exists(org, repo):
-        create_repo(org, repo, desc, private)
-        log(full, "repo created")
+    exists = repo_exists(org, repo)
+    if exists:
+        log(full, "exists — skipped (initializer only creates missing repos)")
+        return
+
+    create_repo(org, repo, desc, private)
+    log(full, "repo created")
 
     repo_dir = ensure_repo_clone(org, repo)
 
