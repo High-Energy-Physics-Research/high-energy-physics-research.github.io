@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout discipline repo
         uses: actions/checkout@v4
+        with:
+          path: repo
 
       - name: Checkout central (template + scripts + registry)
         uses: actions/checkout@v4
@@ -165,7 +167,7 @@ jobs:
       - name: Build site
         run: |
           python central/.github/scripts/build_site.py \
-            --src . \
+            --src repo \
             --out site \
             --template template \
             --title "${{ inputs.site_title }}" \
