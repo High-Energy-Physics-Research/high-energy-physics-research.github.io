@@ -1,36 +1,71 @@
-name: Smoke (dispatcher)
+name: Repo Websites Initializer
 
 on:
   workflow_dispatch:
     inputs:
-      source:
-        description: "who triggered (ui|dispatcher|manual)"
-        required: false
-        default: "dispatcher"
-      target:
-        description: "slug/org selected in audit page"
-        required: false
-        default: ""
-      note:
-        description: "free text for tracing"
-        required: false
-        default: ""
+      mode:
+        description: "Processar todos do registry ou somente um"
+        required: true
+        default: "all"
+        type: choice
+        options: ["all", "one"]
 
-permissions:
-  contents: read
+      org:
+        description: "Org (usado quando mode=one)"
+        required: false
+        default: "academic-codex"
+
+      repo:
+        description: "Repo (usado quando mode=one)"
+        required: false
+        default: ""
 
 jobs:
-  smoke:
+  init:
     runs-on: ubuntu-latest
     steps:
-      - name: Smoke OK
+      # ------------------------------------------------------------
+      # 1) Checkout do REPO CENTRAL (source of truth)
+      # ------------------------------------------------------------
+      - name: Checkout central repo
+        uses: actions/checkout@v4
+        with:
+          path: central
+
+      # ------------------------------------------------------------
+      # 2) Setup Python
+      # ------------------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ------------------------------------------------------------
+      # 3) Dependências
+      # ------------------------------------------------------------
+      - name: Install deps
         run: |
-          echo "SMOKE_OK"
-          echo "ts_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          echo "repo=${GITHUB_REPOSITORY}"
-          echo "ref=${GITHUB_REF}"
-          echo "sha=${GITHUB_SHA}"
-          echo "actor=${GITHUB_ACTOR}"
-          echo "source=${{ inputs.source }}"
-          echo "target=${{ inputs.target }}"
-          echo "note=${{ inputs.note }}"
+          python -m pip install --upgrade pip
+          pip install pyyaml requests
+
+      # ------------------------------------------------------------
+      # 4) Identidade Git (necessário para commits nos repos alvo)
+      # ------------------------------------------------------------
+      - name: Configure git identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+
+      # ------------------------------------------------------------
+      # 5) Inicializador (EXECUTA DENTRO DO CENTRAL)
+      # ------------------------------------------------------------
+      - name: Run initializer
+        working-directory: central
+        env:
+          GH_TOKEN: ${{ secrets.GH_WORKFLOWS }}
+          MODE: ${{ inputs.mode }}
+          ONE_ORG: ${{ inputs.org }}
+          ONE_REPO: ${{ inputs.repo }}
+        run: |
+          python .github/scripts/repo_initializer.py
