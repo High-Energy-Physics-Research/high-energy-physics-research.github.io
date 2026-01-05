@@ -86,7 +86,8 @@ jobs:
       - name: Run initializer
         working-directory: central
         env:
-          GH_TOKEN: ${{ secrets.GH_WORKFLOWS }}   # <- use o PAT aqui
+          GH_TOKEN: ${{ secrets.GH_WORKFLOWS }}  
+          USE_TOKEN_IN_URL: "true"
           MODE: ${{ inputs.mode }}
           ONE_ORG: ${{ inputs.org }}
           ONE_REPO: ${{ inputs.repo }}
