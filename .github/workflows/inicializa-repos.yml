@@ -63,7 +63,7 @@ jobs:
       - name: Run initializer
         working-directory: central
         env:
-          GH_TOKEN: ${{ secrets.GH_WORKFLOWS }}
+          GH_TOKEN: ${{ github.token }}  
           MODE: ${{ inputs.mode }}
           ONE_ORG: ${{ inputs.org }}
           ONE_REPO: ${{ inputs.repo }}
