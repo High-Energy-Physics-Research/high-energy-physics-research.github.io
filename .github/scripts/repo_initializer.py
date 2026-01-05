@@ -201,7 +201,7 @@ def sync_template_into_main(repo_dir: Path) -> bool:
         return False
 
     run(["git", "add", "."], cwd=repo_dir)
-    run(["git", "commit", "-m", "chore: sync repo template (infra + content)"], cwd=repo_dir)
+    run(["git", "commit", "-m", "Update files"], cwd=repo_dir)
     run(["git", "push", "-u", "origin", "main"], cwd=repo_dir)
     return True
 
