@@ -23,8 +23,8 @@ concurrency:
 
 jobs:
   site:
-    uses: Academic-Codex/academic-codex.github.io/.github/workflows/build-site.yml@main
+    uses: High-Energy-Physics-Research/high-energy-physics-research.github.io/.github/workflows/build-site.yml@main
     with:
       execute: "false"
-      template_repo: "Academic-Codex/academic-codex.github.io"
+      template_repo: "High-Energy-Physics-Research/high-energy-physics-research.github.io"
       template_ref: ${{ github.event.client_payload.template_ref || 'main' }}

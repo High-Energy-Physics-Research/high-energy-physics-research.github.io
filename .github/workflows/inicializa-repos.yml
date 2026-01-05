@@ -13,7 +13,7 @@ on:
       org:
         description: "Org (usado quando mode=one)"
         required: false
-        default: "academic-codex"
+        default: "high-energy-physics-research"
 
       repo:
         description: "Repo (usado quando mode=one)"
