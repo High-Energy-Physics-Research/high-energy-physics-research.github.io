@@ -7,7 +7,8 @@ on:
   push:
     branches: [ main ]
     paths:
-      - '.github/templates/site/**'   
+      - '.github/templates/site/**'
+      - '.github/registry/repos.yml'
       - '.github/scripts/build_site.py' 
       - '.github/workflows/build-site.yml'  
       - 'img/**'   

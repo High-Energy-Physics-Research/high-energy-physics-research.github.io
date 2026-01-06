@@ -22,6 +22,10 @@ on:
         type: string
         required: false
         default: "main"
+      placeholders_path:
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -37,8 +41,6 @@ jobs:
     steps:
       - name: Checkout discipline repo
         uses: actions/checkout@v4
-        with:
-          path: repo
 
       - name: Checkout central (template + scripts + registry)
         uses: actions/checkout@v4
@@ -78,53 +80,82 @@ jobs:
       - name: Resolve config from central registry
         shell: bash
         run: |
-          set -euo pipefail
           python - <<'PY'
           import os, sys, yaml
           from pathlib import Path
 
-          full = os.environ.get("GITHUB_REPOSITORY", "")
+          full = (os.environ.get("GITHUB_REPOSITORY") or "").strip()
           if "/" not in full:
             print(f"[fatal] invalid GITHUB_REPOSITORY={full}", file=sys.stderr)
             sys.exit(2)
 
-          owner, repo = full.split("/", 1)
+          owner, repo = full.split("/", 1)  # runtime truth (casing exato)
 
+          # defaults 100% runtime (não dependem de YAML)
+          site_url   = f"https://{owner}.github.io/" if repo == f"{owner}.github.io" else f"https://{owner}.github.io/{repo}"
+          github_url = f"https://github.com/{owner}/{repo}"
+
+          # tenta enriquecer com registry, mas NUNCA falha por isso
+          hit = None
           reg = Path("central/.github/registry/repos.yml")
-          if not reg.exists():
-            print(f"[fatal] registry not found: {reg}", file=sys.stderr)
-            sys.exit(2)
+          if reg.exists():
+            data = yaml.safe_load(reg.read_text(encoding="utf-8")) or {}
+            items = data.get("repos", [])
+            if isinstance(items, list):
+              owner_l = owner.lower()
+              repo_l  = repo.lower()
+              hit = next((it for it in items
+                          if str(it.get("org","")).lower() == owner_l
+                          and str(it.get("name","")).lower() == repo_l), None)
 
-          data = yaml.safe_load(reg.read_text(encoding="utf-8")) or {}
-          items = data.get("repos", [])
-          if not isinstance(items, list):
-            print(f"[fatal] registry key 'repos' must be a list: {reg}", file=sys.stderr)
-            sys.exit(2)
-
-          owner_l = owner.lower()
-          repo_l  = repo.lower()
-
-          hit = next(
-              (
-                  it for it in items
-                  if (it.get("org", "").lower() == owner_l)
-                  and (it.get("name", "").lower() == repo_l)
-              ),
-              None
-          )
           if not hit:
-            print(f"[fatal] repo {owner}/{repo} not found in central registry: {reg}", file=sys.stderr)
-            sys.exit(2)
+            print(f"[warn] repo {owner}/{repo} not found in registry (using runtime defaults).", file=sys.stderr)
+            hit = {}
 
-          site_url = hit.get("site_url") or f"https://{owner}.github.io/{repo}"
+          # Helpers simples
+          def split_title(repo_name: str, title: str | None):
+            # Ex: "SCE0602-Introducao-Ciencia-Da-Computacao-II"
+            # -> ("SCE0602", "Introducao Ciencia Da Computacao II")
+            parts = (repo_name or "").split("-", 1)
+            code = parts[0] if parts else repo_name
+            pretty = (title or (parts[1] if len(parts) > 1 else repo_name) or repo_name)
+            pretty = pretty.replace("-", " ").strip()
+            return code, pretty
 
+          # runtime truth
+          code, pretty = split_title(repo, hit.get("title"))
+
+          # Subtitle defaults: area + level (se existirem)
+          area = (hit.get("academic_area") or "").strip()
+
+          level_raw = (hit.get("academic_level") or "").strip()
+          level = ""
+          if level_raw:
+              lvl = level_raw.lower()
+              if lvl == "undergrad":
+                  level = "Undergraduate Course"
+              elif lvl == "grad":
+                  level = "Graduate Course"
+              else:
+                  # fallback elegante para valores inesperados
+                  level = f"{level_raw.capitalize()} Course"
+    
           out = {
-            "TITLE": hit.get("title") or repo,
+            # === TOKENS QUE O TEMPLATE USA ===
+            "TITLE_1": code,
+            "TITLE_2": pretty,
+            "SUBTITLE_1": area,
+            "SUBTITLE_2": level,
+            "ABOUT": hit.get("site_description") or hit.get("about") or "",
+
+            # link do botão "GitHub"
+            "GITHUB_LINK": github_url,
+
+            # se o template tiver botões com o site
+            "SITE_URL": hit.get("site_url") or site_url,
+
+            # hero
             "HERO_FILE": hit.get("site_hero_image") or "",
-            "SUBTITLE": hit.get("site_subtitle") or "",
-            "DESCRIPTION": hit.get("site_description") or "",
-            "SITE_URL": site_url,
-            "GITHUB_URL": hit.get("github_url") or f"https://github.com/{owner}/{repo}",
           }
 
           Path("_cfg").mkdir(exist_ok=True)
@@ -133,6 +164,8 @@ jobs:
             encoding="utf-8"
           )
           print("[ok] wrote _cfg/site.yml")
+          print(f"[dbg] runtime repo = {owner}/{repo}", file=sys.stderr)
+          print(f"[dbg] site_url     = {out['SITE_URL']}", file=sys.stderr)
           PY
 
       - name: Fetch hero image (from central)
@@ -167,7 +200,7 @@ jobs:
       - name: Build site
         run: |
           python central/.github/scripts/build_site.py \
-            --src repo \
+            --src . \
             --out site \
             --template template \
             --title "${{ inputs.site_title }}" \

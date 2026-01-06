@@ -8,8 +8,10 @@ on:
     branches: [ main ]
     paths:
       - '.github/templates/readme/**' 
+      - '.github/registry/repos.yml' 
       - '.github/scripts/build_readme.py'
       - '.github/workflows/build-readme.yml'
+      - '.github/workflows/dispatch-readme-remplate-update.yml'
 
 jobs:
   notify:

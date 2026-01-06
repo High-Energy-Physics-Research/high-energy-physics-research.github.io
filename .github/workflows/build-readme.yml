@@ -15,6 +15,10 @@ on:
         type: string
         required: false
         default: "main"
+      placeholders_path:
+        type: string
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -59,47 +63,75 @@ jobs:
       - name: Resolve README config from central registry
         shell: bash
         run: |
+      - name: Resolve README config from central registry
+        shell: bash
+        run: |
           set -euo pipefail
           python - <<'PY'
-          import os, sys, yaml
+          import os, sys, yaml, re
           from pathlib import Path
 
-          full = os.environ.get("GITHUB_REPOSITORY", "")
+          full = (os.environ.get("GITHUB_REPOSITORY") or "").strip()
           if "/" not in full:
             print(f"[fatal] invalid GITHUB_REPOSITORY={full}", file=sys.stderr)
             sys.exit(2)
 
-          owner, repo = full.split("/", 1)
+          owner, repo = full.split("/", 1)  # runtime truth (casing exato)
+          owner_l, repo_l = owner.lower(), repo.lower()
 
+          # runtime defaults (não quebra)
+          site_url = f"https://{owner}.github.io/" if repo == f"{owner}.github.io" else f"https://{owner}.github.io/{repo}"
+          assets_dir = ".github/readme"
+
+          # registry (best-effort)
+          hit = {}
           reg = Path("central/.github/registry/repos.yml")
-          data = yaml.safe_load(reg.read_text(encoding="utf-8")) or {}
-          items = data.get("repos", [])
-          if not isinstance(items, list):
-            print(f"[fatal] registry repos must be a list: {reg}", file=sys.stderr)
-            sys.exit(2)
+          if reg.exists():
+            data = yaml.safe_load(reg.read_text(encoding="utf-8")) or {}
+            items = data.get("repos", [])
+            if isinstance(items, list):
+              hit = next((it for it in items
+                          if str(it.get("org","")).lower() == owner_l
+                          and str(it.get("name","")).lower() == repo_l), {}) or {}
 
-          hit = None
-          for it in items:
-            if (it.get("org") == owner) and (it.get("name") == repo):
-              hit = it
-              break
+          # TITLE_1/TITLE_2: tenta usar id + title do registry; se não tiver, deriva do nome do repo
+          course_id = (hit.get("id") or "").strip()
+          title = (hit.get("title") or "").strip()
 
-          if not hit:
-            print(f"[fatal] repo {owner}/{repo} not found in registry: {reg}", file=sys.stderr)
-            sys.exit(2)
+          if not course_id:
+            course_id = repo.split("-", 1)[0] if "-" in repo else repo
 
-          # Defaults sensatos (runtime)
-          site_url = hit.get("site_url") or f"https://{owner}.github.io/{repo}"
-          assets_dir = hit.get("readme_assets_dir") or ".github/readme"
+          if not title:
+            rest = repo.split("-", 1)[1] if "-" in repo else repo
+            title = rest.replace("-", " ").strip()
+
+          # tagline: usa readme_tagline se vier; senão monta de area+level (se existirem)
+          area  = (hit.get("academic_area") or "").strip()
+          level = (hit.get("academic_level") or "").strip()
+          if level:
+            lvl = level.lower().strip()
+            if lvl == "undergrad":
+              level = "Undergraduate Course"
+            elif lvl == "grad":
+              level = "Graduate Course"
+            else:
+              level = level[:1].upper() + level[1:]  # fallback
+
+          repo_tagline = (hit.get("readme_tagline") or "").strip()
+          if not repo_tagline:
+            parts = [p for p in [area, level] if p]
+            repo_tagline = " • ".join(parts) if parts else "lectures • notebooks • references"
 
           out = {
-            # tokens que seu template do readme costuma usar
-            "TITLE": hit.get("title") or repo,                 # opcional (se o template usa)
-            "REPO_TAGLINE": hit.get("readme_tagline") or "",
-            "CTA_TEXT": hit.get("readme_cta_text") or "Access the full course website",
-            "THEME": hit.get("readme_theme") or "coding",
-            "SITE_URL": site_url,
-            "ASSETS_DIR": assets_dir,
+            "TITLE_1": course_id,
+            "TITLE_2": title,
+
+            "REPO_TAGLINE": repo_tagline,
+            "CTA_TEXT": (hit.get("readme_cta_text") or "Access the full course website").strip(),
+            "THEME": (hit.get("readme_theme") or "coding").strip(),
+
+            "SITE_URL": (hit.get("site_url") or site_url).strip(),
+            "ASSETS_DIR": (hit.get("readme_assets_dir") or assets_dir).strip(),
           }
 
           Path("_cfg").mkdir(exist_ok=True)
@@ -107,7 +139,9 @@ jobs:
             yaml.safe_dump(out, sort_keys=False, allow_unicode=True),
             encoding="utf-8"
           )
+
           print("[ok] wrote _cfg/readme.yml")
+          print(f"[dbg] runtime repo = {owner}/{repo}", file=sys.stderr)
           PY
 
       # 2) Build README + SVGs
@@ -133,5 +167,5 @@ jobs:
           git add README.md || true
           git add .github/readme || true
 
-          git commit -m "chore: update README assets"
+          git commit -m "Update files"
           git push

@@ -7,7 +7,7 @@ import sys
 import shutil
 from datetime import datetime
 import yaml
-
+import os
 
 def load_yaml_file(p: Path) -> dict:
     if not p.exists():
@@ -152,6 +152,23 @@ def inject_svg_build_attr(svg_text: str, cfg: dict) -> str:
 
     return re.sub(r"<svg\b", f'<svg data-build="{ts}"', svg_text, count=1)
 
+def set_site_url_from_actions(cfg: dict) -> dict:
+    cfg = dict(cfg)
+
+    full = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    if "/" not in full:
+        cfg["SITE_URL"] = ""
+        return cfg
+
+    org, repo = full.split("/", 1)  # mantém o casing exato
+
+    # project pages
+    if repo == f"{org}.github.io":
+        cfg["SITE_URL"] = f"https://{org}.github.io/"
+    else:
+        cfg["SITE_URL"] = f"https://{org}.github.io/{repo}"
+
+    return cfg
 
 def main():
     repo_root, central_readme, cfg_path = parse_args(sys.argv[1:])
@@ -160,6 +177,7 @@ def main():
     cfg = load_placeholders(cfg_path, recursive=True)
     cfg = ensure_defaults(cfg)
     cfg["TIMESTAMP"] = datetime.utcnow().isoformat() + "Z"
+    cfg = set_site_url_from_actions(cfg)
 
     assets_dir = repo_root / cfg["ASSETS_DIR"]
     assets_dir.mkdir(parents=True, exist_ok=True)

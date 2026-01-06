@@ -51,7 +51,8 @@ def load_config(cfg_path: Path) -> dict:
 
 IGNORE_DIRS = {
     ".git", ".github", ".venv", "venv", "__pycache__",
-    "node_modules", ".script", "site"
+    "node_modules", ".script", "site",
+    "central", "template",
 }
 
 def copy_tree(src_dir: Path, dst_dir: Path):
@@ -111,6 +112,14 @@ def collect_tree(src: Path, out: Path, execute: bool):
     dir_map = {str(src.resolve()): root}
 
     for path in sorted(src.rglob("*")):
+        # --- IGNORA diretorios "de infra" que não são conteúdo do curso ---
+        rel = path.relative_to(src)
+        if any(part in IGNORE_DIRS for part in rel.parts):
+            continue
+
+        if out in path.parents or path == out:
+            continue
+    
         if out in path.parents or path == out:
             continue
         rel_parts = path.relative_to(src).parts
@@ -157,9 +166,111 @@ def collect_tree(src: Path, out: Path, execute: bool):
             str(path),
         ]
         
+
+        def _widen_notebook_html(html_path: Path):
+            try:
+                s = html_path.read_text(encoding="utf-8", errors="ignore")
+            except Exception:
+                return
+
+            css = """
+        <style id="wide-notebook">
+        /* make nbconvert classic use full width */
+        #notebook-container {
+        width: 100% !important;
+        max-width: none !important;
+        }
+        .container, .container-fluid {
+        width: 100% !important;
+        max-width: none !important;
+        }
+        div#notebook {
+        width: 100% !important;
+        }
+        body {
+        margin: 0 !important;
+        padding: 0 !important;
+        }
+        /* ====== Reduce classic nbconvert left gutter + top gap ====== */
+
+        /* remove o "gutter" / margem esquerda que vira aquele bloco vazio */
+        div.prompt.input_prompt {
+        width: 42px !important;      /* era ~90-110px; ajuste fino aqui */
+        min-width: 42px !important;
+        }
+
+        /* alguns themes usam .prompt */
+        .prompt {
+        width: 42px !important;
+        min-width: 42px !important;
+        }
+
+        /* reduz padding horizontal do notebook (onde sobra ar demais) */
+        #notebook {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+        }
+
+        /* reduz padding interno das células (ajuda a “encostar” mais no layout) */
+        div.cell {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        }
+
+        /* mata aquele gap no topo do primeiro conteúdo */
+        #notebook-container {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+        }
+
+        /* se o classic estiver colocando sombra/borda feia no container, desliga */
+        #notebook-container {
+        box-shadow: none !important;
+        border: 0 !important;
+        }
+
+        /* garante que o body não crie faixa branca extra */
+        html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        }
+        div.prompt.input_prompt,
+        div.prompt.output_prompt {
+        display: none !important;
+        }
+
+        /* Indent só no conteúdo renderizado do Markdown (não mexe em código/output) */
+        #notebook .text_cell_render p,
+        #notebook .text_cell_render h1,
+        #notebook .text_cell_render h2,
+        #notebook .text_cell_render h3,
+        #notebook .text_cell_render h4,
+        #notebook .text_cell_render h5,
+        #notebook .text_cell_render h6 {
+        text-indent: 35px; /* ajuste aqui */
+        }
+
+        </style>
+        """.strip()
+
+            if "id=\"wide-notebook\"" in s:
+                return
+
+            if "</head>" in s:
+                s = s.replace("</head>", css + "\n</head>", 1)
+            elif "<body" in s:
+                s = re.sub(r"(<body[^>]*>)", r"\1\n" + css + "\n", s, count=1)
+            else:
+                s = css + "\n" + s
+
+            html_path.write_text(s, encoding="utf-8")
+
+
         if execute:
             cmd.append("--execute")
         subprocess.run(cmd, check=True)
+        _widen_notebook_html(out_html)
+
 
         file_node["nb_html"] = str(out_html.relative_to(out)).replace(os.sep, "/")
 
@@ -187,6 +298,7 @@ def collect_tree(src: Path, out: Path, execute: bool):
     return root, nb_count
 
 
+
 def build_static_site(src: Path, out: Path, template_dir: Path, title: str, execute: bool, cfg: dict | None):
     tree, nb_count = collect_tree(src, out, execute)
 
@@ -195,8 +307,6 @@ def build_static_site(src: Path, out: Path, template_dir: Path, title: str, exec
     refs_html = render_references_html(refs)
     cfg = dict(cfg or {})
     cfg["REFERENCIAS"] = refs_html
-    
-    tree, nb_count = collect_tree(src, out, execute)
 
     out.mkdir(parents=True, exist_ok=True)
     pages = [
