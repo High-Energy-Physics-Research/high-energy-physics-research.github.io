@@ -17,3 +17,6 @@ jobs:
     secrets: inherit
     with:
       repo: ${{ inputs.target }}
+    secrets:
+      PROVISIONER_APP_ID: ${{ secrets.PROVISIONER_APP_ID }}
+      PROVISIONER_PRIVATE_KEY_PEM: ${{ secrets.PROVISIONER_PRIVATE_KEY_PEM }}
