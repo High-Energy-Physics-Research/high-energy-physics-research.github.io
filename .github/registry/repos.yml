@@ -12,13 +12,13 @@ repos:
     name: Academic-Research-Journal
     id: AR2026
     title: Academic Research Journal
-    academic_level: grad
+    academic_level: graduate
     academic_area: Research
     academic_school: University of São Paulo
     site_hero_image: journaling.jpg
     site_subtitle: Heavy Ion Collision
     site_description: Research journaling.
     readme_tagline: Concepts * Theory * Simulation tools
-    readme_cta_text: Website
+    readme_cta_text: "Open full course website."
     readme_theme: minimal
 
