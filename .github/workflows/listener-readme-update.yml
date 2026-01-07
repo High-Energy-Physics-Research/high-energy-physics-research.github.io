@@ -14,7 +14,6 @@ permissions:
 jobs:
   run:
     uses: naavilam/github-infra-templates/.github/workflows/update-org-readmes.yml@main
-    secrets: inherit
     with:
       repo: ${{ inputs.target }}
     secrets:
