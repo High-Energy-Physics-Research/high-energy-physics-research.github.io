@@ -23,8 +23,8 @@ repos:
     readme_theme: minimal
 
   - org: High-Energy-Physics-Research
-    name: Gaussian-Process-Research
-    id: Gaussian-Processes
+    name: Gaussian-Process-Regression-Research
+    id: Gaussian Processes Regression
     title: Research
     academic_level: graduate
     academic_area: Heavy Ion Collision
