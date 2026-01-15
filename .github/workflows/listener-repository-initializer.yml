@@ -1,4 +1,4 @@
-name: Listener Repository Initializer
+name: Listener Repositories Initializer
 
 on:
   workflow_dispatch:
@@ -13,10 +13,9 @@ permissions:
 
 jobs:
   run:
-    uses: naavilam/github-infra-templates/.github/workflows/repository-initializer.yml@main
+    uses: naavilam/github-infra-templates/.github/workflows/repositories-initializer.yml@main
     with:
       repo: ${{ inputs.target }}
-      registry_path: ".github/registry/repos.yml"
     secrets:
       PROVISIONER_APP_ID: ${{ secrets.PROVISIONER_APP_ID }}
       PROVISIONER_PRIVATE_KEY_PEM: ${{ secrets.PROVISIONER_PRIVATE_KEY_PEM }}
