@@ -1,4 +1,4 @@
-name: Listener Update Website
+name: Listener Update Repositories Websites
 
 on:
   workflow_dispatch:
@@ -13,7 +13,9 @@ permissions:
 
 jobs:
   run:
-    uses: naavilam/github-infra-templates/.github/workflows/repository-website-update.yml@main
-    secrets: inherit
+    uses: naavilam/github-infra-templates/.github/workflows/repositories-website-update.yml@main
     with:
       repo: ${{ inputs.target }}
+    secrets:
+      PROVISIONER_APP_ID: ${{ vars.PROVISIONER_APP_ID }}
+      PROVISIONER_PRIVATE_KEY_PEM: ${{ secrets.PROVISIONER_PRIVATE_KEY_PEM }}
