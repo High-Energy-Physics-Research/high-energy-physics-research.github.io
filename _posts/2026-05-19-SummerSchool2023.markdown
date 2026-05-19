@@ -1,0 +1,18 @@
+---
+title: "JS2023 Bayesian Inference"
+link: "/SummerSchool2023"
+category: "graduate"
+
+academic_area: "Bayesian Analysis"
+academic_field: ""
+
+area: "Bayesian Analysis"
+field: ""
+
+layout: default
+modal-id: 5
+date: 2026-05-19
+img: "jetscape-summerschool-2023.png"
+alt: image-alt
+description: "Bayesian Inference Research."
+---

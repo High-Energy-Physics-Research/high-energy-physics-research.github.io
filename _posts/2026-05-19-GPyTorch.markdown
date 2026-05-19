@@ -1,0 +1,18 @@
+---
+title: "GPY2026 GPyTorch"
+link: "/GPyTorch"
+category: "graduate"
+
+academic_area: "Gaussian Processes"
+academic_field: ""
+
+area: "Gaussian Processes"
+field: ""
+
+layout: default
+modal-id: 3
+date: 2026-05-19
+img: "gpytorch.png"
+alt: image-alt
+description: "Gaussian Process Implementation."
+---
